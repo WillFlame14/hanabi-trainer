@@ -3,13 +3,25 @@ import { afterUpdate, onMount } from 'svelte';
 export let cards, clue;
 
 const CANVAS_WIDTH = 619, CANVAS_HEIGHT = 230, CARD_WIDTH = 109, CARD_HEIGHT = 155, ARROW_WIDTH = 80, ARROW_HEIGHT = 120;
-let area, ctx;
+let card_layer, arrow_layer, clue_layer;
+let loading = 0;
+let card_ctx, arrow_ctx, clue_ctx;
+let drawArea, area;
 let images = {};
 
 onMount(() => {
-	ctx = area.getContext("2d");
-	ctx.canvas.width = CANVAS_WIDTH;
-	ctx.canvas.height = CANVAS_HEIGHT;
+	drawArea = area.getContext('2d');
+	card_layer = document.createElement('canvas');
+	card_ctx = card_layer.getContext('2d');
+	arrow_layer = document.createElement('canvas');
+	arrow_ctx = arrow_layer.getContext('2d');
+	clue_layer = document.createElement('canvas');
+	clue_ctx = clue_layer.getContext('2d');
+
+	for (const layer of [drawArea, card_ctx, arrow_ctx, clue_ctx]) {
+		layer.canvas.width = CANVAS_WIDTH;
+		layer.canvas.height = CANVAS_HEIGHT;
+	}
 
 	// Figure out how to add shadow on hoverover
 	// area.onmousemove = function(event) {
@@ -42,7 +54,7 @@ onMount(() => {
 	// }
 });
 
-function fillRoundRect (x, y, w, h, r) {
+function fillRoundRect (ctx, x, y, w, h, r) {
 	if (w < 2 * r) r = w / 2;
 	if (h < 2 * r) r = h / 2;
 	ctx.beginPath();
@@ -53,37 +65,52 @@ function fillRoundRect (x, y, w, h, r) {
 	ctx.arcTo(x,   y,   x+w, y,   r);
 	ctx.closePath();
 	ctx.fill();
+	ctx.shadowBlur = 0;
 }
 
-function fillCircle (x, y, r) {
+function fillCircle (ctx, x, y, r) {
 	ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
 }
 
-function preDraw(name, x, y, width, height) {
+function draw(ctx, image, x, y, width, height, shadow) {
+	if (shadow) {
+		ctx.shadowColor = 'green';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+	}
+	ctx.drawImage(image, x, y, width, height);
+	ctx.shadowBlur = 0;
+}
+
+function preDraw(ctx, name, x, y, width, height, shadow) {
 	if (images[name] === undefined) {
+		loading++;
 		const img = new Image;
 		img.src = `images/${name}.svg`;
 		img.onload = function() {
 			images[name] = this;
-			ctx.drawImage(this, x, y, width, height);
+			draw(ctx, this, x, y, width, height, shadow);
+			loading--;
 		}
 	}
 	else {
-		ctx.drawImage(images[name], x, y, width, height);
+		// console.log(images[name]);
+		draw(ctx, images[name], x, y, width, height, shadow);
 	}
 }
 
-function drawClue(clue, x, y) {
+function drawClue(ctx, clue, x, y) {
 	const radius = 25;
 	if (isNaN(clue)) {
 
 	}
 	ctx.fillStyle = isNaN(clue) ? 'black' : 'white';
-	fillCircle(x, y, radius);
+	fillCircle(ctx, x, y, radius);
 	ctx.fillStyle = isNaN(clue) ? clue : 'black';
-	fillCircle(x, y, radius - 3);
+	fillCircle(ctx, x, y, radius - 3);
 
 	if (!isNaN(clue)) {
 		ctx.fillStyle = 'white';
@@ -92,25 +119,42 @@ function drawClue(clue, x, y) {
 	}
 }
 
-afterUpdate(() => {
-	ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+function retry(func, callback, retry_time) {
+	if (func()) {
+		callback();
+	}
+	else {
+		setTimeout(() => retry(func, callback, retry_time), retry_time);
+	}
+}
+
+afterUpdate(async () => {
+	for (const layer of [drawArea, card_ctx, arrow_ctx, clue_ctx]) {
+		layer.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+	}
 
 	for (const [i, card] of cards.entries()) {
 		const current_clued = card.colour === clue || (!isNaN(clue) && card.number === Number(clue));
 
 		if (card.clued || current_clued) {
-			ctx.fillStyle = 'orange';
-			fillRoundRect(125*i, 65, CARD_WIDTH + 10, CARD_HEIGHT + 10, 10);
+			card_ctx.fillStyle = 'orange';
+			fillRoundRect(card_ctx, 125*i, 65, CARD_WIDTH + 10, CARD_HEIGHT + 10, 10);
 		}
 
-		preDraw(`cards/${card.colour + card.number}`, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT);
+		preDraw(card_ctx, `cards/${card.colour + card.number}`, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, false);
 
 		if (current_clued) {
-			setTimeout(() => preDraw(`pieces/arrow`, 125*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, 0, 80, 120), 25);
-			setTimeout(() => drawClue(clue, 125*i + 5 + CARD_WIDTH / 2, 43), 50);
+			preDraw(arrow_ctx, `pieces/arrow`, 125*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, 0, 80, 120);
+			drawClue(clue_ctx, clue, 125*i + 5 + CARD_WIDTH / 2, 43);
 		}
 	}
-})
+
+	retry(() => loading == 0, () => {
+		drawArea.drawImage(card_layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		drawArea.drawImage(arrow_layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		drawArea.drawImage(clue_layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+	}, 10);
+});
 </script>
 
 <canvas id=area bind:this="{area}"></canvas>
