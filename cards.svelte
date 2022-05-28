@@ -25,14 +25,28 @@ onMount(() => {
 	}
 });
 
+function applyShadow(ctx) {
+	ctx.shadowColor = '#222222';
+	ctx.shadowBlur = 5;
+	ctx.shadowOffsetX = 2;
+	ctx.shadowOffsetY = 2;
+}
+
+function clearShadow(ctx) {
+	ctx.shadowBlur = 0;
+	ctx.shadowOffsetX = 0;
+	ctx.shadowOffsetY = 0;
+}
+
 function fillRoundRect (ctx, x, y, w, h, r, shadow = false, stroke = false) {
+	x += LEFT_OFFSET;
+	y += TOP_OFFSET;
+
 	if (w < 2 * r) r = w / 2;
 	if (h < 2 * r) r = h / 2;
+
 	if (shadow) {
-		ctx.shadowColor = '#222222';
-		ctx.shadowBlur = 5;
-		ctx.shadowOffsetX = 2;
-		ctx.shadowOffsetY = 2;
+		applyShadow(ctx);
 	}
 	ctx.beginPath();
 	ctx.moveTo(x+r, y);
@@ -43,33 +57,24 @@ function fillRoundRect (ctx, x, y, w, h, r, shadow = false, stroke = false) {
 	ctx.closePath();
 	if (stroke) {
 		ctx.stroke();
-	}
-	else {
+	} else {
 		ctx.fill();
 	}
-
-	ctx.shadowBlur = 0;
-	ctx.shadowOffsetX = 0;
-	ctx.shadowOffsetY = 0;
+	clearShadow(ctx);
 }
 
 function fillCircle (ctx, x, y, r) {
 	ctx.beginPath();
-	ctx.arc(x, y, r, 0, Math.PI * 2);
+	ctx.arc(LEFT_OFFSET + x, TOP_OFFSET + y, r, 0, Math.PI * 2);
 	ctx.fill();
 }
 
 function draw(ctx, image, x, y, width, height, shadow) {
 	if (shadow) {
-		ctx.shadowColor = '#222222';
-		ctx.shadowBlur = 5;
-		ctx.shadowOffsetX = 2;
-		ctx.shadowOffsetY = 2;
+		applyShadow(ctx);
 	}
-	ctx.drawImage(image, x, y, width, height);
-	ctx.shadowBlur = 0;
-	ctx.shadowOffsetX = 0;
-	ctx.shadowOffsetY = 0;
+	ctx.drawImage(image, LEFT_OFFSET + x, TOP_OFFSET + y, width, height);
+	clearShadow(ctx);
 }
 
 function preDraw(ctx, name, x, y, width, height, shadow = false) {
@@ -101,7 +106,7 @@ function drawClue(ctx, clue, x, y) {
 	if (!isNaN(clue)) {
 		ctx.fillStyle = 'white';
 		ctx.font = '36px Roboto';
-		ctx.fillText(clue, x - 10, y + 13);
+		ctx.fillText(clue, LEFT_OFFSET + x - 10, TOP_OFFSET + y + 13);
 	}
 }
 
@@ -123,39 +128,40 @@ afterUpdate(async () => {
 		const current_clued = card.colour === clue || (!isNaN(clue) && card.number === Number(clue));
 
 		if (card.clued || current_clued) {
-			// card_ctx.fillStyle = 'black';
-			// fillRoundRect(card_ctx, LEFT_OFFSET + 130*i - 2, TOP_OFFSET + 65 - 2  - (current_clued ? 20 : 0), CARD_WIDTH + 14, CARD_HEIGHT + 14, 10);
+			// Draw highlight around the card
 			card_ctx.fillStyle = 'orange';
-			fillRoundRect(card_ctx, LEFT_OFFSET + 130*i, TOP_OFFSET + 65 - (current_clued ? 20 : 0), CARD_WIDTH + 10, CARD_HEIGHT + 10, 10, false);
+			fillRoundRect(card_ctx, 130*i, 65 - (current_clued ? 20 : 0), CARD_WIDTH + 10, CARD_HEIGHT + 10, 10, false);
+
+			// Draw outline around the card
 			card_ctx.fillStyle = 'black';
 			card_ctx.lineWidth = 2;
-			fillRoundRect(card_ctx, LEFT_OFFSET + 130*i + 5, TOP_OFFSET + 70 - (current_clued ? 20 : 0), CARD_WIDTH, CARD_HEIGHT, 10, false, true);
+			fillRoundRect(card_ctx, 130*i + 5, 70 - (current_clued ? 20 : 0), CARD_WIDTH, CARD_HEIGHT, 10, false, true);
 		}
 
 		if (card.colour === 'gray') {
 			card_ctx.fillStyle = 'gray';
-			fillRoundRect(card_ctx, LEFT_OFFSET + 130*i + 5, TOP_OFFSET + 70, CARD_WIDTH, CARD_HEIGHT, 10, true);
+			fillRoundRect(card_ctx, 130*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, 10, true);
 		}
 		else {
-			preDraw(
-				card_ctx,
+			preDraw(card_ctx,
 				`cards/${card.colour + card.number}`,
-				LEFT_OFFSET + 130*i + 5, TOP_OFFSET + 70 - (current_clued ? 20 : 0),
+				130*i + 5, 70 - (current_clued ? 20 : 0),
 				CARD_WIDTH, CARD_HEIGHT,
 				!(card.clued || current_clued)
 			);
 		}
 
 		if (current_clued) {
-			preDraw(arrow_ctx, `pieces/arrow`, LEFT_OFFSET + 130*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, TOP_OFFSET + 0 - (current_clued ? 20 : 0), 80, 120);
-			drawClue(clue_ctx, clue, LEFT_OFFSET + 130*i + 5 + CARD_WIDTH / 2, TOP_OFFSET + 43 - (current_clued ? 20 : 0));
+			preDraw(arrow_ctx, `pieces/arrow`, 130*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, 0 - (current_clued ? 20 : 0), 80, 120);
+			drawClue(clue_ctx, clue, 130*i + 5 + CARD_WIDTH / 2, 43 - (current_clued ? 20 : 0));
 		}
 	}
 
+	// Draw all layers (unless some images haven't finished loading)
 	retry(() => loading == 0, () => {
-		drawArea.drawImage(card_layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-		drawArea.drawImage(arrow_layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-		drawArea.drawImage(clue_layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		for (const layer of [card_layer, arrow_layer, clue_layer]) {
+			drawArea.drawImage(layer, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		}
 	}, 10);
 });
 </script>

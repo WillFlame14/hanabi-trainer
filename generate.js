@@ -3,49 +3,49 @@ const clues = ['1', '2', '3', '4', '5', 'red', 'green', 'yellow', 'blue', 'purpl
 
 export function focus(difficulty = 0) {
 	let question = 'Determine which card is the focus.';
-	const cards = [];
-	let clue;
-	let answer = -1;
-	let explanationFunc;
+	let cards, clue, answer, explanationFunc;
 
 	let total_clued = 0;
 
 	if (difficulty == 0) {
 		question = 'No cards were clued previously. ' + question;
+		let clue_type;
 
+		// Determine if number or colour clue
 		if (Math.random() < 0.5) {
-			// Colour clue
-			const fixed_colour = colours[Math.floor(Math.random() * 5) + 1];
-
-			for (let i = 0; i < 5; i++) {
-				const match = Math.random() < 0.6;
-				cards.push({
-					clued: match,
-					colour: match ? fixed_colour : 'gray',
-					number: ''
-				});
-				if (match) {
-					total_clued++;
-				}
-			}
-			clue = fixed_colour;
+			clue = colours[Math.floor(Math.random() * 5) + 1];
+			clue_type = 'colour';
 		}
 		else {
-			// Number clue
-			const fixed_number = Math.floor(Math.random() * 5) + 1;
+			clue = Math.floor(Math.random() * 5) + 1;
+			clue_type = 'number';
+		}
 
+		// Randomly generate the cards (making sure at least one card is clued)
+		while(total_clued === 0) {
+			cards = [];
 			for (let i = 0; i < 5; i++) {
-				const match = Math.random() < 0.6;
-				cards.push({
-					clued: match,
-					colour: match ? '': 'gray',
-					number: match ? fixed_number : ''
-				});
+				let match = Math.random() < 0.6;
+
+				if (clue_type === 'colour') {
+					cards.push({
+						clued: match,
+						colour: match ? clue : 'gray',
+						number: ''
+					});
+				}
+				else if (clue_type === 'number') {
+					cards.push({
+						clued: match,
+						colour: match ? '': 'gray',
+						number: match ? clue : ''
+					});
+				}
+
 				if (match) {
 					total_clued++;
 				}
 			}
-			clue = fixed_number;
 		}
 
 		// Determine answer
@@ -66,7 +66,7 @@ export function focus(difficulty = 0) {
 		// Explanation
 		explanationFunc = function(slot) {
 			if (total_clued === 1) {
-				return "If only one card is newly clued, focus is on that card.";
+				return "If only one card is newly clued, the focus is on that card.";
 			}
 			if (answer === 4) {
 				return "If a multi-card clue touches the chop, the focus is on the chop.";
