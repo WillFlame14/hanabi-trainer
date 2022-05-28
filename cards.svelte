@@ -141,7 +141,13 @@ afterUpdate(async () => {
 			fillRoundRect(card_ctx, 125*i, 65, CARD_WIDTH + 10, CARD_HEIGHT + 10, 10);
 		}
 
-		preDraw(card_ctx, `cards/${card.colour + card.number}`, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, false);
+		if (card.colour === 'gray') {
+			card_ctx.fillStyle = 'gray';
+			fillRoundRect(card_ctx, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, 10);
+		}
+		else {
+			preDraw(card_ctx, `cards/${card.colour + card.number}`, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, false);
+		}
 
 		if (current_clued) {
 			preDraw(arrow_ctx, `pieces/arrow`, 125*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, 0, 80, 120);

@@ -1,6 +1,7 @@
 <script>
 import { onMount } from 'svelte';
 import Cards from './cards.svelte';
+import { focus } from './generate.js';
 
 let cards = [
 	{colour: '', number: 1, clued: true},
@@ -11,22 +12,23 @@ let cards = [
 ];
 let clue = '3';
 
-let question = 'Determine which card is the focus.';
+let question, answer;
+let correct = null;
+let explanation, explanationFunc;
 
-const colours = ['', 'red', 'green', 'yellow', 'blue', 'purple'];
-const clues = ['1', '2', '3', '4', '5', 'red', 'green', 'yellow', 'blue', 'purple'];
+onMount(() => {
+	// Temporary hack
+	setTimeout(refresh, 20);
+});
 
 function refresh() {
-	const new_cards = [];
-	for (let i = 0; i < 5; i++) {
-		new_cards.push({
-			clued: Math.random() < 0.4,
-			colour: colours[Math.floor(Math.random() * 6)],
-			number: Math.floor(Math.random() * 5) + 1
-		});
-	}
-	clue = clues[Math.floor(Math.random() * clues.length)];
-	cards = new_cards;
+	correct = null;
+	({question, cards, clue, answer, explanationFunc} = focus());
+}
+
+function submit(slot) {
+	correct = (slot === answer);
+	explanation = explanationFunc(slot);
 }
 
 </script>
@@ -35,22 +37,33 @@ function refresh() {
 	<div id="question">{question}</div>
 	<Cards cards={cards} clue={clue}></Cards>
 	<div>
-		<button on:click="{refresh}">Refresh</button>
+		{#each {length: 5} as _, i}
+			<button on:click={() => submit(i)}>Slot {i + 1}</button>
+		{/each}
 	</div>
+	{#if correct != null}
+		<div>
+			<div>{correct ? 'Correct!' : 'Incorrect.'}</div>
+			{#if !correct}
+				<div>{explanation}</div>
+			{/if}
+		</div>
+		<button on:click="{refresh}">Next question</button>
+	{/if}
 </div>
 
 <style>
 	:global(html) {
-		background-color: #222222;
+		background-color: #444444;
+		color: white;
+		font-size: 14pt;
+		font-family: "Roboto";
 	}
 	#f {
 		margin: 0 auto;
 		text-align: center;
 	}
 	#question {
-		color: white;
 		margin-bottom: 1vw;
-		font-size: 14pt;
-		font-family: "Roboto";
 	}
 </style>
