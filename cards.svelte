@@ -2,7 +2,8 @@
 import { afterUpdate, onMount } from 'svelte';
 export let cards, clue;
 
-const CANVAS_WIDTH = 619, CANVAS_HEIGHT = 230, CARD_WIDTH = 109, CARD_HEIGHT = 155, ARROW_WIDTH = 80, ARROW_HEIGHT = 120;
+const LEFT_OFFSET = 5, TOP_OFFSET = 25;
+const CANVAS_WIDTH = LEFT_OFFSET + 655, CANVAS_HEIGHT = TOP_OFFSET + 245, CARD_WIDTH = 109, CARD_HEIGHT = 155, ARROW_WIDTH = 80, ARROW_HEIGHT = 120;
 let card_layer, arrow_layer, clue_layer;
 let loading = 0;
 let card_ctx, arrow_ctx, clue_ctx;
@@ -22,41 +23,17 @@ onMount(() => {
 		layer.canvas.width = CANVAS_WIDTH;
 		layer.canvas.height = CANVAS_HEIGHT;
 	}
-
-	// Figure out how to add shadow on hoverover
-	// area.onmousemove = function(event) {
-	// 	const x = event.pageX, y = event.pageY;
-	// 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-	// 	for (let i = 0; i < circle.length; i++) {
-	// 		if ((x > circle[i].x - circle[i].r) && (y > circle[i].y - circle[i].r) && (x < circle[i].x + circle[i].r) && (y < circle[i].y + circle[i].r)) {
-	// 			ctx.beginPath();
-	// 			ctx.arc(circle[i].x, circle[i].y, circle[i].r, 0, 2 * Math.PI);
-	// 			ctx.fillStyle = "blue";
-	// 			ctx.fill();
-	// 			ctx.shadowBlur = 10;
-	// 			ctx.lineWidth = 3;
-	// 			ctx.strokeStyle = 'rgb(255,255,255)';
-	// 			ctx.shadowColor = 'grey';
-	// 			ctx.stroke();
-	// 			ctx.shadowColor = 'white';
-	// 			ctx.shadowBlur = 0;
-	// 		}
-	// 		else {
-	// 			ctx.beginPath();
-	// 			ctx.arc(circle[i].x, circle[i].y, circle[i].r, 0, 2 * Math.PI);
-	// 			ctx.fillStyle = "blue";
-	// 			ctx.fill();
-	// 			ctx.shadowColor = 'white';
-	// 			ctx.shadowBlur = 0;
-	// 		}
-	// 	}
-	// }
 });
 
-function fillRoundRect (ctx, x, y, w, h, r) {
+function fillRoundRect (ctx, x, y, w, h, r, shadow = false, stroke = false) {
 	if (w < 2 * r) r = w / 2;
 	if (h < 2 * r) r = h / 2;
+	if (shadow) {
+		ctx.shadowColor = '#222222';
+		ctx.shadowBlur = 5;
+		ctx.shadowOffsetX = 2;
+		ctx.shadowOffsetY = 2;
+	}
 	ctx.beginPath();
 	ctx.moveTo(x+r, y);
 	ctx.arcTo(x+w, y,   x+w, y+h, r);
@@ -64,28 +41,38 @@ function fillRoundRect (ctx, x, y, w, h, r) {
 	ctx.arcTo(x,   y+h, x,   y,   r);
 	ctx.arcTo(x,   y,   x+w, y,   r);
 	ctx.closePath();
-	ctx.fill();
+	if (stroke) {
+		ctx.stroke();
+	}
+	else {
+		ctx.fill();
+	}
+
 	ctx.shadowBlur = 0;
+	ctx.shadowOffsetX = 0;
+	ctx.shadowOffsetY = 0;
 }
 
 function fillCircle (ctx, x, y, r) {
 	ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+	ctx.arc(x, y, r, 0, Math.PI * 2);
+	ctx.fill();
 }
 
 function draw(ctx, image, x, y, width, height, shadow) {
 	if (shadow) {
-		ctx.shadowColor = 'green';
-        ctx.shadowBlur = 5;
-        ctx.shadowOffsetX = 5;
-        ctx.shadowOffsetY = 5;
+		ctx.shadowColor = '#222222';
+		ctx.shadowBlur = 5;
+		ctx.shadowOffsetX = 2;
+		ctx.shadowOffsetY = 2;
 	}
 	ctx.drawImage(image, x, y, width, height);
 	ctx.shadowBlur = 0;
+	ctx.shadowOffsetX = 0;
+	ctx.shadowOffsetY = 0;
 }
 
-function preDraw(ctx, name, x, y, width, height, shadow) {
+function preDraw(ctx, name, x, y, width, height, shadow = false) {
 	if (images[name] === undefined) {
 		loading++;
 		const img = new Image;
@@ -97,7 +84,6 @@ function preDraw(ctx, name, x, y, width, height, shadow) {
 		}
 	}
 	else {
-		// console.log(images[name]);
 		draw(ctx, images[name], x, y, width, height, shadow);
 	}
 }
@@ -137,21 +123,32 @@ afterUpdate(async () => {
 		const current_clued = card.colour === clue || (!isNaN(clue) && card.number === Number(clue));
 
 		if (card.clued || current_clued) {
+			// card_ctx.fillStyle = 'black';
+			// fillRoundRect(card_ctx, LEFT_OFFSET + 130*i - 2, TOP_OFFSET + 65 - 2  - (current_clued ? 20 : 0), CARD_WIDTH + 14, CARD_HEIGHT + 14, 10);
 			card_ctx.fillStyle = 'orange';
-			fillRoundRect(card_ctx, 125*i, 65, CARD_WIDTH + 10, CARD_HEIGHT + 10, 10);
+			fillRoundRect(card_ctx, LEFT_OFFSET + 130*i, TOP_OFFSET + 65 - (current_clued ? 20 : 0), CARD_WIDTH + 10, CARD_HEIGHT + 10, 10, false);
+			card_ctx.fillStyle = 'black';
+			card_ctx.lineWidth = 2;
+			fillRoundRect(card_ctx, LEFT_OFFSET + 130*i + 5, TOP_OFFSET + 70 - (current_clued ? 20 : 0), CARD_WIDTH, CARD_HEIGHT, 10, false, true);
 		}
 
 		if (card.colour === 'gray') {
 			card_ctx.fillStyle = 'gray';
-			fillRoundRect(card_ctx, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, 10);
+			fillRoundRect(card_ctx, LEFT_OFFSET + 130*i + 5, TOP_OFFSET + 70, CARD_WIDTH, CARD_HEIGHT, 10, true);
 		}
 		else {
-			preDraw(card_ctx, `cards/${card.colour + card.number}`, 125*i + 5, 70, CARD_WIDTH, CARD_HEIGHT, false);
+			preDraw(
+				card_ctx,
+				`cards/${card.colour + card.number}`,
+				LEFT_OFFSET + 130*i + 5, TOP_OFFSET + 70 - (current_clued ? 20 : 0),
+				CARD_WIDTH, CARD_HEIGHT,
+				!(card.clued || current_clued)
+			);
 		}
 
 		if (current_clued) {
-			preDraw(arrow_ctx, `pieces/arrow`, 125*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, 0, 80, 120);
-			drawClue(clue_ctx, clue, 125*i + 5 + CARD_WIDTH / 2, 43);
+			preDraw(arrow_ctx, `pieces/arrow`, LEFT_OFFSET + 130*i + 5 + CARD_WIDTH / 2 - ARROW_WIDTH / 2, TOP_OFFSET + 0 - (current_clued ? 20 : 0), 80, 120);
+			drawClue(clue_ctx, clue, LEFT_OFFSET + 130*i + 5 + CARD_WIDTH / 2, TOP_OFFSET + 43 - (current_clued ? 20 : 0));
 		}
 	}
 
